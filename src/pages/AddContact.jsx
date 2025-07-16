@@ -1,10 +1,11 @@
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link, useParams } from "react-router-dom";
 import useGlobalReducer from "../hooks/useGlobalReducer";
 
 const AddContact = () => {
-  const { dispatch } = useGlobalReducer();
+  const { dispatch, store } = useGlobalReducer();
   const navigate = useNavigate();
+  const { id } = useParams();
 
   const [form, setForm] = useState({
     full_name: "",
@@ -13,6 +14,21 @@ const AddContact = () => {
     address: ""
   });
 
+  // Si estamos editando, buscar el contacto en el store
+  useEffect(() => {
+    if (id) {
+      const contactToEdit = store.contacts.find((c) => String(c.id) === id && !c.local);
+      if (contactToEdit) {
+        setForm({
+          full_name: contactToEdit.full_name || "",
+          email: contactToEdit.email || "",
+          phone: contactToEdit.phone || "",
+          address: contactToEdit.address || ""
+        });
+      }
+    }
+  }, [id, store.contacts]);
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -20,32 +36,56 @@ const AddContact = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    try {
-      const resp = await fetch("https://organic-winner-pxx99pq49rqhr7xw-5000.app.github.dev/contacts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(form)
-      });
+    if (id) {
+      // 🛠 EDITAR contacto backend
+      try {
+        const resp = await fetch(`https://organic-winner-pxx99pq49rqhr7xw-5000.app.github.dev/contacts/${id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(form)
+        });
 
-      if (!resp.ok) {
-        const errorData = await resp.json();
-        console.error("Error al guardar en la API:", errorData);
-      } else {
+        if (!resp.ok) throw new Error("Error al editar contacto en API");
+
+        const updatedContact = await resp.json();
+        dispatch({ type: "update_contact", payload: updatedContact });
+        navigate("/");
+      } catch (err) {
+        console.warn("Error al editar contacto:", err.message);
+      }
+
+    } else {
+      // ➕ AGREGAR contacto
+      try {
+        const resp = await fetch("https://organic-winner-pxx99pq49rqhr7xw-5000.app.github.dev/contacts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form)
+        });
+
+        if (!resp.ok) throw new Error("Error al guardar contacto en API");
+
         const newContact = await resp.json();
         dispatch({ type: "add_contact", payload: newContact });
         navigate("/");
+      } catch (err) {
+        console.warn("Backend no disponible, guardando local:", err.message);
+        const localContact = { ...form, id: Date.now(), local: true };
+        const local = JSON.parse(localStorage.getItem("offline_contacts") || "[]");
+        local.push(localContact);
+        localStorage.setItem("offline_contacts", JSON.stringify(local));
+        dispatch({ type: "add_contact", payload: localContact });
+        navigate("/");
       }
-    } catch (err) {
-      console.error("Error al conectar con la API:", err);
     }
   };
 
   return (
     <div className="container mt-4">
       <div className="card p-4">
-        <h3 className="text-center mb-4">Add a new contact</h3>
+        <h3 className="text-center mb-4">{id ? "Edit contact" : "Add a new contact"}</h3>
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
             <label className="form-label">Full Name</label>
@@ -101,7 +141,7 @@ const AddContact = () => {
 
           <div className="d-grid mb-2">
             <button type="submit" className="btn btn-primary">
-              Save contact
+              {id ? "Save changes" : "Save contact"}
             </button>
           </div>
 

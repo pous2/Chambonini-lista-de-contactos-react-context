@@ -7,47 +7,60 @@ const Contacts = () => {
   const { store, dispatch } = useGlobalReducer();
   const navigate = useNavigate();
 
-  // Cargar contactos desde el backend
   useEffect(() => {
     const fetchContacts = async () => {
+      let backendContacts = [];
       try {
         const res = await fetch("https://organic-winner-pxx99pq49rqhr7xw-5000.app.github.dev/contacts");
-        if (!res.ok) throw new Error("Error al cargar contactos");
-        const data = await res.json();
-        dispatch({ type: "set_contacts", payload: data });
+        if (res.ok) backendContacts = await res.json();
       } catch (err) {
-        console.error("No se pudieron obtener los contactos:", err);
+        console.warn("No se pudieron obtener los contactos del backend:", err);
       }
+
+      // Marcar locales con local: true
+      const localContacts = JSON.parse(localStorage.getItem("offline_contacts") || "[]")
+        .map(c => ({ ...c, local: true }));
+
+      const allContacts = [...backendContacts, ...localContacts];
+      dispatch({ type: "set_contacts", payload: allContacts });
     };
 
     fetchContacts();
   }, [dispatch]);
 
-  // Eliminar contacto
-  const handleDelete = async (id) => {
-    try {
-      const res = await fetch(`https://organic-winner-pxx99pq49rqhr7xw-5000.app.github.dev/contacts/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Error al eliminar contacto");
+  const handleDelete = async (id, isLocal) => {
+    if (isLocal) {
+      // Eliminar localmente
+      let localContacts = JSON.parse(localStorage.getItem("offline_contacts") || "[]");
+      localContacts = localContacts.filter(c => c.id !== id);
+      localStorage.setItem("offline_contacts", JSON.stringify(localContacts));
       dispatch({ type: "delete_contact", payload: id });
-    } catch (err) {
-      console.error("No se pudo eliminar el contacto:", err);
+    } else {
+      try {
+        const res = await fetch(`https://organic-winner-pxx99pq49rqhr7xw-5000.app.github.dev/contacts/${id}`, {
+          method: "DELETE"
+        });
+        if (!res.ok) throw new Error();
+        dispatch({ type: "delete_contact", payload: id });
+      } catch (e) {
+        console.warn("Error al eliminar del backend:", e);
+      }
     }
   };
 
-  // Editar contacto
-  const handleEdit = (id) => {
-    navigate(`/edit/${id}`);
+  const handleEdit = (id, isLocal) => {
+    if (isLocal) {
+      navigate(`/edit-local/${id}`);
+    } else {
+      navigate(`/edit/${id}`);
+    }
   };
 
   return (
     <div className="container mt-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2>Contactos</h2>
-        <Link to="/add-contact" className="btn btn-primary">
-          Agregar contacto
-        </Link>
+        <Link to="/add-contact" className="btn btn-primary">Agregar contacto</Link>
       </div>
 
       {store.contacts.length === 0 ? (

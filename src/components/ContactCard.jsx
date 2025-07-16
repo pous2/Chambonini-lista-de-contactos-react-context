@@ -11,29 +11,13 @@ const ContactCard = ({ contact, onDelete, onEdit }) => {
       />
       <div className="flex-grow-1">
         <h5 className="mb-1">{contact.full_name}</h5>
-        <p className="mb-0">
-          <i className="fas fa-map-marker-alt me-2"></i> {contact.address}
-        </p>
-        <p className="mb-0">
-          <i className="fas fa-phone me-2"></i> {contact.phone}
-        </p>
-        <p className="mb-0">
-          <i className="fas fa-envelope me-2"></i> {contact.email}
-        </p>
+        <p className="mb-0"><i className="fas fa-map-marker-alt me-2"></i> {contact.address}</p>
+        <p className="mb-0"><i className="fas fa-phone me-2"></i> {contact.phone}</p>
+        <p className="mb-0"><i className="fas fa-envelope me-2"></i> {contact.email}</p>
       </div>
       <div className="ms-3 d-flex">
-        <button
-          className="btn btn-link text-dark me-2"
-          onClick={() => onEdit(contact)}
-        >
-          <i className="fas fa-pencil-alt"></i>
-        </button>
-        <button
-          className="btn btn-link text-danger"
-          onClick={() => onDelete(contact.id)}
-        >
-          <i className="fas fa-trash"></i>
-        </button>
+        <button className="btn btn-link text-dark me-2" onClick={() => onEdit(contact.id, contact.local)}><i className="fas fa-pencil-alt"></i></button>
+        <button className="btn btn-link text-danger" onClick={() => onDelete(contact.id, contact.local)}><i className="fas fa-trash"></i></button>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
-#abrir con: python3 app.py
+# primero:  pip install flask flask-cors
+# para luego abrir con: python3 app.py
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -17,7 +18,7 @@ def get_contacts():
 def add_contact():
     global next_id
     data = request.get_json()
-    if not data:
+    if not data or "full_name" not in data:
         return jsonify({"error": "Datos faltantes"}), 400
     data["id"] = next_id
     next_id += 1
@@ -35,7 +36,12 @@ def update_contact(contact_id):
     data = request.get_json()
     for contact in contacts:
         if contact["id"] == contact_id:
-            contact.update(data)
+            contact.update({
+                "full_name": data.get("full_name", contact["full_name"]),
+                "email": data.get("email", contact.get("email")),
+                "phone": data.get("phone", contact.get("phone")),
+                "address": data.get("address", contact.get("address"))
+            })
             return jsonify(contact), 200
     return jsonify({"error": "Contacto no encontrado"}), 404
 
