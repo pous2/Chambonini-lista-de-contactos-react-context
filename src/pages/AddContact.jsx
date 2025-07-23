@@ -14,10 +14,9 @@ const AddContact = () => {
     address: ""
   });
 
-  // Si estamos editando, buscar el contacto en el store
   useEffect(() => {
     if (id) {
-      const contactToEdit = store.contacts.find((c) => String(c.id) === id && !c.local);
+      const contactToEdit = store.contacts.find((c) => String(c.id) === id);
       if (contactToEdit) {
         setForm({
           full_name: contactToEdit.full_name || "",
@@ -36,49 +35,37 @@ const AddContact = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (id) {
-      // 🛠 EDITAR contacto backend
-      try {
-        const resp = await fetch(`https://organic-winner-pxx99pq49rqhr7xw-5000.app.github.dev/contacts/${id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(form)
-        });
+    const url = id
+      ? `https://organic-winner-pxx99pq49rqhr7xw-5000.app.github.dev/contacts/${id}`
+      : `https://organic-winner-pxx99pq49rqhr7xw-5000.app.github.dev/contacts`;
+    const method = id ? "PUT" : "POST";
 
-        if (!resp.ok) throw new Error("Error al editar contacto en API");
+    try {
+      const resp = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form)
+      });
 
-        const updatedContact = await resp.json();
-        dispatch({ type: "update_contact", payload: updatedContact });
-        navigate("/");
-      } catch (err) {
-        console.warn("Error al editar contacto:", err.message);
-      }
+      if (!resp.ok) throw new Error("Error en API");
 
-    } else {
-      // ➕ AGREGAR contacto
-      try {
-        const resp = await fetch("https://organic-winner-pxx99pq49rqhr7xw-5000.app.github.dev/contacts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form)
-        });
+      // API exitosa → refrescamos desde API
+      const refreshed = await fetch("https://organic-winner-pxx99pq49rqhr7xw-5000.app.github.dev/contacts");
+      const updatedList = await refreshed.json();
 
-        if (!resp.ok) throw new Error("Error al guardar contacto en API");
+      // Limpiamos contactos locales si guardamos exitosamente
+      localStorage.removeItem("offline_contacts");
 
-        const newContact = await resp.json();
-        dispatch({ type: "add_contact", payload: newContact });
-        navigate("/");
-      } catch (err) {
-        console.warn("Backend no disponible, guardando local:", err.message);
-        const localContact = { ...form, id: Date.now(), local: true };
-        const local = JSON.parse(localStorage.getItem("offline_contacts") || "[]");
-        local.push(localContact);
-        localStorage.setItem("offline_contacts", JSON.stringify(local));
-        dispatch({ type: "add_contact", payload: localContact });
-        navigate("/");
-      }
+      dispatch({ type: "set_contacts", payload: updatedList });
+      navigate("/");
+    } catch (err) {
+      console.warn("Error API, guardando local:", err.message);
+      const localContact = { ...form, id: Date.now(), local: true };
+      const offline = JSON.parse(localStorage.getItem("offline_contacts") || "[]");
+      offline.push(localContact);
+      localStorage.setItem("offline_contacts", JSON.stringify(offline));
+      dispatch({ type: "add_contact", payload: localContact });
+      navigate("/");
     }
   };
 
@@ -99,7 +86,6 @@ const AddContact = () => {
               required
             />
           </div>
-
           <div className="mb-3">
             <label className="form-label">Email</label>
             <input
@@ -112,7 +98,6 @@ const AddContact = () => {
               required
             />
           </div>
-
           <div className="mb-3">
             <label className="form-label">Phone</label>
             <input
@@ -125,7 +110,6 @@ const AddContact = () => {
               required
             />
           </div>
-
           <div className="mb-3">
             <label className="form-label">Address</label>
             <input
@@ -138,13 +122,11 @@ const AddContact = () => {
               required
             />
           </div>
-
           <div className="d-grid mb-2">
             <button type="submit" className="btn btn-primary">
               {id ? "Save changes" : "Save contact"}
             </button>
           </div>
-
           <div className="text-start">
             <Link to="/" className="text-secondary">
               or get back to contacts
